@@ -77,18 +77,19 @@
     async function deployToCloudflare(userData, rawFileUrl) {
       try {
         const { apiToken, email, zoneId } = userData;
-        
-        // Fetch file content from GitHub raw file URL
-        const githubResponse = await fetch(rawFileUrl);
-        
+
+        // Fetch file content from GitHub raw file URL via CORS Anywhere proxy
+        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+        const githubResponse = await fetch(proxyUrl + rawFileUrl);
+
         if (!githubResponse.ok) {
           throw new Error('Failed to fetch file from GitHub. Please check the URL and try again.');
         }
-        
+
         const fileContent = await githubResponse.text();
-        
-        // Make request to Cloudflare Pages API to deploy the file
-        const cloudflareResponse = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/workers/script`, {
+
+        // Make request to Cloudflare Pages API via CORS Anywhere proxy
+        const cloudflareResponse = await fetch(proxyUrl + `https://api.cloudflare.com/client/v4/zones/${zoneId}/workers/script`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${apiToken}`,
