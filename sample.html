@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deploy to Cloudflare Pages</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input[type="text"],
+    input[type="email"],
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    button {
+      background-color: #007bff;
+      color: #fff;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #response {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Deploy to Cloudflare Pages</h1>
+    <form id="deployForm">
+      <label for="apiToken">Cloudflare API Token:</label>
+      <input type="text" id="apiToken" name="apiToken" required><br>
+      <label for="email">Cloudflare Account Email:</label>
+      <input type="email" id="email" name="email" required><br>
+      <label for="zoneId">Cloudflare Zone ID:</label>
+      <input type="text" id="zoneId" name="zoneId" required><br>
+      <label for="rawFileUrl">GitHub Raw File URL:</label>
+      <input type="text" id="rawFileUrl" name="rawFileUrl" required placeholder="https://raw.githubusercontent.com/username/repository/main/_worker.js"><br>
+      <button type="submit">Deploy</button>
+    </form>
+    <div id="response"></div>
+  </div>
+
+  <script>
+    // Function to deploy file to Cloudflare Pages
+    async function deployToCloudflare(userData, rawFileUrl) {
+      try {
+        const { apiToken, email, zoneId } = userData;
+        
+        // Fetch file content from GitHub raw file URL
+        const githubResponse = await fetch(rawFileUrl);
+        
+        if (!githubResponse.ok) {
+          throw new Error('Failed to fetch file from GitHub. Please check the URL and try again.');
+        }
+        
+        const fileContent = await githubResponse.text();
+        
+        // Make request to Cloudflare Pages API to deploy the file
+        const cloudflareResponse = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/workers/script`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${apiToken}`,
+            'Content-Type': 'application/javascript',
+          },
+          body: fileContent,
+        });
+
+        if (!cloudflareResponse.ok) {
+          throw new Error('Failed to deploy file to Cloudflare Pages. Please check your Cloudflare API token and Zone ID.');
+        }
+
+        const cloudflareData = await cloudflareResponse.json();
+        return cloudflareData.result.url;
+      } catch (error) {
+        console.error('Error deploying file:', error);
+        throw error;
+      }
+    }
+
+    // Form submission event listener
+    document.getElementById('deployForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      
+      const userData = {
+        apiToken: document.getElementById('apiToken').value,
+        email: document.getElementById('email').value,
+        zoneId: document.getElementById('zoneId').value,
+      };
+      const rawFileUrl = document.getElementById('rawFileUrl').value;
+
+      try {
+        const pageUrl = await deployToCloudflare(userData, rawFileUrl);
+        document.getElementById('response').textContent = `File deployed successfully! Visit ${pageUrl}`;
+      } catch (error) {
+        let errorMessage = 'Failed to deploy file. Please check your input and try again.';
+        if (error instanceof TypeError) {
+          errorMessage = 'Failed to connect to the server. Please check your internet connection and try again.';
+        } else if (error instanceof SyntaxError) {
+          errorMessage = 'An unexpected error occurred while processing the response. Please try again later.';
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        document.getElementById('response').textContent = errorMessage;
+      }
+    });
+  </script>
+</body>
+</html>
